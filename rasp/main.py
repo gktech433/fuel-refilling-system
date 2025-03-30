@@ -99,8 +99,41 @@ def get_vehicle_status(vehicle_reg_number):
         return True
     return False
 
-def get_initial_meter_reading():
-    
+def get_meter_reading(image_path):
+    try:
+        endpoint = os.environ["VISION_ENDPOINT"]
+        key = os.environ["VISION_KEY"]
+    except KeyError:
+        print("Missing environment variable 'VISION_ENDPOINT' or 'VISION_KEY'")
+        exit()
+
+    # Create an Image Analysis client
+    client = ImageAnalysisClient(
+        endpoint=endpoint,
+        credential=AzureKeyCredential(key)
+    )
+
+    with open(image_path, "rb") as f:
+        image_data = f.read()
+
+    result = client.analyze(
+        image_data=image_data,
+        visual_features=[VisualFeatures.READ]
+    )
+
+    rupees = None
+    litres = None
+    if result.read is not None:
+        print(result.read.blocks[0].lines)
+        rupees = float(result.read.blocks[0].lines[1].text.replace(' ', '')) / 10
+        litres = float(result.read.blocks[0].lines[3].text.replace(' ', ''))
+        for line in result.read.blocks[0].lines:
+            print(f"Line: '{line.text}'")
+            vehicle_reg_number=line.text
+    else:
+        print("OCR operation failed or timed out")
+        
+    return rupees, litres
 
 
 def upload_image(image_name):
@@ -118,12 +151,21 @@ def upload_image(image_name):
     return True
 
 if __name__ == "__main__":
-    image_name = capture_image()
-    if image_name is None:
-        print("no image name")
-    image_path=f"images/vehicle_reg_numbers/{image_name}.jpg"
-    vehicle_reg_number=get_vehicle_reg_number(image_path)
-    # vehicle_reg_number=get_vehicle_reg_number("images/noplate5.jpg")
-    print(vehicle_reg_number)
-    vehicle_status=get_vehicle_status(vehicle_reg_number)
-    print(vehicle_status)
+    # image_name = capture_image("vehicle")
+    # if image_name is None:
+    #     print("no image name")
+    # image_path=f"images/vehicle_reg_numbers/{image_name}.jpg"
+    # vehicle_reg_number=get_vehicle_reg_number(image_path)
+    # # vehicle_reg_number=get_vehicle_reg_number("images/noplate5.jpg")
+    # print(vehicle_reg_number)
+    # vehicle_status=get_vehicle_status(vehicle_reg_number)
+    # print(vehicle_status)
+    # if vehicle_status:
+    meter_reading_0_image_name = capture_image("meter")
+    meter_reading_0_image_path = f"images/meter_readings/{meter_reading_0_image_name}.jpg"
+    amount, litres = get_meter_reading(meter_reading_0_image_path)
+    print("amount: ", amount)
+    print("litres: ", litres)
+    
+
+
